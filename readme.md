@@ -4,35 +4,40 @@ In this repository i aim to demonstrate the performance of different inference a
 
 The benchmark will ask the models (open weight models downloaded from Hugging Face) to detect anomalies within the dataset, and produces a JSON file indicating batch accuracy, mean response time, 95th percentile response time, inference vs preprocessing time if applicable.
 
-## Command-line setup validation
+## Run an MVTec AD category test
 
-The current command-line interface validates the dataset folder and model configuration; it does not yet run image inference, inspect dataset contents, or produce anomaly metrics. The Transformer engine accepts a Hugging Face model ID or a local model directory. It loads the model configuration only, not the model weights.
+The `transformer` engine can run image-level normal/anomalous classification for one MVTec AD category. On the remote Jetson, provide the path where you extracted MVTec AD and a Hugging Face model ID or local model directory for an instruction-tuned vision-language model supported by `AutoModelForImageTextToText` and `AutoProcessor` (including a chat template that accepts images).
 
-Run it from the repository root:
+The dataset root should have the standard MVTec AD layout:
 
-```bash
-PYTHONPATH=.src python .src/benchmarker.py \
-  --dataset-folder /path/to/mvtec_ad \
-  --model google/vit-base-patch16-224 \
-  --engine transformer
+```text
+<dataset-root>/<category>/test/good/*.png
+<dataset-root>/<category>/test/<defect-type>/*.png
 ```
 
-For an offline/local Transformers model, pass its directory as `--model`:
+The `good` folder is treated as normal; every other test subfolder is treated as anomalous. This first implementation measures image-level binary classification, not pixel-level defect segmentation. It requires at least one normal and one anomalous image in the selected category.
+
+From the repository root on the Jetson, set the variables to the actual paths/model you chose, then run:
 
 ```bash
+DATASET_ROOT="/absolute/path/to/mvtec_anomaly_detection"
+MODEL_ID="your-org/your-instruction-tuned-vision-language-model"
+CATEGORY="bottle"
+
 PYTHONPATH=.src python .src/benchmarker.py \
-  --dataset-folder /path/to/mvtec_ad \
-  --model /path/to/local/model \
-  --engine transformer
+  --dataset-folder "$DATASET_ROOT" \
+  --category "$CATEGORY" \
+  --model "$MODEL_ID" \
+  --engine transformer \
+  --device-map auto \
+  --dtype auto
 ```
 
-The supported engine names correspond to packages under `.src/testerframework/`:
+For a model already stored on the Jetson, set `MODEL_ID` to its absolute local directory instead. The model is loaded and evaluated on each image; this is an actual inference run, not just a config validation. Ensure the Jetson environment has a Transformers-compatible, Jetson/CUDA-compatible PyTorch installation and Pillow. Do not assume that the workstation's CUDA/PyTorch wheels are suitable for Jetson.
 
-- `transformer`: validates a Hugging Face model configuration from a Hub ID or local directory.
-- `llama_cpp_python`: expects an existing local `.gguf` file, but exits with an explicit unsupported message because this package does not yet contain a runnable tester.
-- `llama_serve`: is listed as a package, but has no runnable tester or defined endpoint argument contract yet.
+By default, a JSON result containing per-image predictions, accuracy, mean preprocessing/inference/response time, and p95 response time is written under `.dpl/results/`. Structured lifecycle/event logs are written under `.dpl/logs/`. Override these with `--output-dir` and `--log-dir`. `--max-new-tokens` defaults to 8; the model must answer each image with exactly `normal` or `anomalous`, otherwise the run fails rather than scoring an ambiguous response. `--trust-remote-code` is opt-in; use it only when the chosen model requires custom code.
 
-`--dataset-folder` must identify an existing directory. The current validator does not verify that it contains a correctly structured MVTec AD dataset. Add `--trust-remote-code` only for model configurations that require custom Hugging Face code.
+To check only the dataset directory and Hugging Face model configuration without loading weights or processing images, add `--validate-only`. The `llama_cpp_python` and `llama_serve` packages do not yet have runnable MVTec testers; the CLI reports that explicitly.
 
 ## Repository structure
 This repository is strictured using the following directories:
