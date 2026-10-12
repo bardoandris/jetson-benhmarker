@@ -1,16 +1,7 @@
-import json as _json
-import typing as _typing
+"""Command-line launcher for Jetson Benchmarker."""
+
+from testerframework.cli import main
 
 
-def main():
-    """
-    This is the main function for the Jetson Benchmarker application.
-    It initializes the application and starts the benchmarking processes.
-    """
-    # Initialize the application
-    print("Initializing Jetson Benchmarker...")
-
-    # Start the benchmarking processes
-    print("Starting benchmarking processes...")
-    import libraries.transformer.transformer_test as transformer_test
-    
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -149,7 +149,7 @@ class base_tester:
                 error_type=type(error).__name__,
                 error=str(error),
             )
-            self._logger.info("test_finished")
+            self._logger.exception("test_finished")
             raise
         else:
             self._logger.add_metadata(status="completed")
@@ -171,3 +171,13 @@ class base_tester:
                     return {"tokens_per_second": 42.0}
         """
         raise NotImplementedError("Subclasses should implement this method.")
+
+    def _run_test_with_model(self, model_path: str) -> typing.Dict[str, typing.Any]:
+        """Run the test with a specific model.
+
+        This is a convenience method for subclasses that need to load a model
+        from a file path. It adds the model path to the metadata and calls
+        :meth:`_run_test`.
+        """
+        self._logger.add_metadata(model_path=model_path)
+        return self._run_test()
